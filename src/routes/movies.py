@@ -173,8 +173,7 @@ async def movie_update(
         await update_movie(db, movie_id, payload.model_dump(exclude_none=True))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid input data.")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid input data.")
+
 
     return MovieUpdateResponseShema.model_validate({
         "detail": "Movie updated successfully."
