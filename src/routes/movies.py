@@ -174,7 +174,6 @@ async def movie_update(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid input data.")
 
-
     return MovieUpdateResponseShema.model_validate({
         "detail": "Movie updated successfully."
     })
