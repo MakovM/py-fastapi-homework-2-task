@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud import get_movies_count, get_movies, get_movie, get_or_create, delete_movie, update_movie
+from crud import get_movies, get_movie, get_or_create, delete_movie, update_movie, movie_create
 from database import get_db, MovieModel
 from database.models import CountryModel, GenreModel, ActorModel, LanguageModel
 from schemas.movies import (
@@ -33,7 +34,7 @@ async def movies_list(
         per_page: int = Query(10, ge=1, le=20),
         db: AsyncSession = Depends(get_db)
 ):
-    total_items = await get_movies_count(db)
+    total_items = await db.scalar(select(func.count()).select_from(MovieModel))
 
     if total_items == 0:
         raise HTTPException(status_code=404, detail="No movies found.")
@@ -67,7 +68,7 @@ async def movies_list(
         }
     }
 )
-async def movie_create(
+async def create_movie(
         movie: MovieCreateRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
@@ -77,26 +78,7 @@ async def movie_create(
         raise HTTPException(status_code=409, detail=f"A movie with the name '{movie.name}' "
                                                     f"and release date '{movie.date}' already exists.")
 
-    country = await get_or_create(CountryModel, db, code=movie.country)
-    genres = [await get_or_create(GenreModel, db, name=name) for name in movie.genres]
-    actors = [await get_or_create(ActorModel, db, name=name) for name in movie.actors]
-    languages = [await get_or_create(LanguageModel, db, name=name) for name in movie.languages]
-
-    new_movie = MovieModel(
-        name=movie.name,
-        date=movie.date,
-        score=movie.score,
-        overview=movie.overview,
-        status=movie.status,
-        budget=movie.budget,
-        revenue=movie.revenue,
-        country=country,
-        genres=genres,
-        actors=actors,
-        languages=languages,
-    )
-    db.add(new_movie)
-    await db.commit()
+    new_movie = await movie_create(db, movie)
     created_movie = await get_movie(db=db, id=new_movie.id)
 
     return MovieCreateResponseSchema.model_validate(created_movie)
